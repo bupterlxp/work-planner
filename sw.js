@@ -1,5 +1,5 @@
 /* Service worker — offline app shell cache. Bump CACHE on each release. */
-var CACHE = "work-planner-v7";
+var CACHE = "work-planner-v8";
 var ASSETS = [
   "./",
   "./index.html",

@@ -450,6 +450,15 @@ body::after {
 .xp-chip { font-size: 11px; padding: 1px 8px; border-radius: var(--r-pill); color: #fff; font-weight: 600; }
 .ability-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 
+/* Per-project ability breakdown (inside ability panel) */
+.proj-ab-list { display: flex; flex-direction: column; gap: 14px; }
+.proj-ab-row { display: flex; flex-direction: column; gap: 6px; }
+.proj-ab-head { display: flex; align-items: center; gap: 8px; }
+.proj-ab-head .pdot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.proj-ab-name { font-weight: 600; font-size: 14px; }
+.proj-ab-total { margin-left: auto; font-size: 12px; color: var(--muted); }
+.proj-ab-row .xp-gains { margin-top: 0; }
+
 /* Level-up celebration */
 .levelup {
   position: fixed; left: 50%; top: 30%; transform: translate(-50%,-50%);

@@ -519,6 +519,8 @@
         '<div class="ab-bar"><i style="width:' + lv.pct + "%;background:" + esc(a.color) + '"></i></div></div>';
     });
     html += "</div></div>";
+    // 项目能力：按项目拆解能力贡献
+    html += projectAbilityPanelHtml();
     // log
     html += '<div class="panel"><h3>🕑 成长记录 <span class="sub">' + state.xpLog.length + " 条</span></h3>";
     if (!state.xpLog.length) html += '<div class="ai-empty">完成工作项后，这里会记录每一次能力成长。</div>';
@@ -537,6 +539,37 @@
     root.innerHTML = html;
     el("abAnalyze").addEventListener("click", reanalyzeAll);
     el("abReset").addEventListener("click", resetAbilities);
+  }
+  function projectAbilityPanelHtml() {
+    var rows = [];
+    function rowFor(name, color, ab) {
+      var ids = Object.keys(ab).sort(function (a, b) { return ab[b] - ab[a]; });
+      if (!ids.length) return;
+      var total = ids.reduce(function (s, id) { return s + ab[id]; }, 0);
+      var chips = ids.slice(0, 5).map(function (id) {
+        var a = ability(id);
+        return a ? '<span class="xp-chip" style="background:' + esc(a.color) + '">' + a.icon + " " + esc(a.name) + " " + ab[id] + "</span>" : "";
+      }).join("");
+      rows.push({ name: name, color: color, total: total, chips: chips });
+    }
+    state.projects.forEach(function (p) { rowFor(p.name, p.color, projectStats(p.id).abilities); });
+    rowFor("未分类任务", "var(--muted)", projectStats(null).abilities);
+    rows.sort(function (a, b) { return b.total - a.total; });
+
+    var html = '<div class="panel"><h3>📊 项目能力 <span class="sub">各项目分别练了你哪些能力</span></h3>';
+    if (!rows.length) {
+      html += '<div class="ai-empty">完成归属于某个项目的工作项后，这里会按项目拆解你的能力成长。</div>';
+    } else {
+      html += '<div class="proj-ab-list">';
+      rows.forEach(function (r) {
+        html += '<div class="proj-ab-row"><div class="proj-ab-head"><span class="pdot" style="background:' + esc(r.color) + '"></span>' +
+          '<span class="proj-ab-name">' + esc(r.name) + '</span><span class="proj-ab-total">' + r.total + ' 分</span></div>' +
+          '<div class="xp-gains">' + r.chips + "</div></div>";
+      });
+      html += "</div>";
+    }
+    html += "</div>";
+    return html;
   }
   function radarSvg(abs, scale) {
     var n = abs.length, cx = 160, cy = 145, R = 105;
@@ -640,8 +673,6 @@
     var st = PROJECT_STATUS[p.status];
     var dueOver = p.due && p.due < todayStr() && p.status !== "done";
     var msDone = p.milestones.filter(function (m) { return m.done; }).length;
-    var abChips = Object.keys(s.abilities).sort(function (a, b) { return s.abilities[b] - s.abilities[a]; }).slice(0, 4)
-      .map(function (id) { var a = ability(id); return a ? '<span class="xp-chip" style="background:' + esc(a.color) + '">' + a.icon + " " + s.abilities[id] + "</span>" : ""; }).join("");
     return '<div class="proj-card' + (p.status === "done" ? " is-done" : "") + '" data-pid="' + p.id + '" style="--pc:' + esc(p.color) + '">' +
       '<div class="proj-card-head"><span class="pdot" style="background:' + esc(p.color) + '"></span>' +
         '<span class="pname">' + esc(p.name) + '</span>' +
@@ -654,7 +685,6 @@
         (p.due ? '<span class="' + (dueOver ? "pdue-over" : "") + '">📅 ' + p.due + (dueOver ? " 逾期" : "") + "</span>" : '<span class="muted2">无截止日</span>') +
         (s.overdue ? '<span class="pdue-over">⚠️ ' + s.overdue + " 项逾期</span>" : "") +
       "</div>" +
-      (abChips ? '<div class="xp-gains">' + abChips + "</div>" : "") +
       "</div>";
   }
   el("viewRoot").addEventListener("click", function (e) {
