@@ -6,13 +6,18 @@
 
   // ---------------- Constants ----------------
   var STORAGE_KEY = "work-planner.v2";
-  var SCHEMA_VERSION = 3;
+  var SCHEMA_VERSION = 4;
   var STATUSES = [
     { id: "todo", name: "待办", color: "#8a919f" },
     { id: "doing", name: "进行中", color: "#3370ff" },
     { id: "done", name: "已完成", color: "#18b566" },
   ];
   var PRIORITIES = { high: { name: "高", rank: 0 }, mid: { name: "中", rank: 1 }, low: { name: "低", rank: 2 } };
+  var PROJECT_STATUS = {
+    active: { name: "进行中", color: "var(--accent)", rank: 0 },
+    paused: { name: "搁置", color: "var(--p-mid)", rank: 1 },
+    done: { name: "已完成", color: "var(--done)", rank: 2 },
+  };
   var DEFAULT_COLORS = ["#3370ff", "#f53f3f", "#ff9a2e", "#18b566", "#a259ff", "#13c2c2", "#eb2f96", "#fa8c16"];
   var WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   var DEFAULT_ABILITIES = [
@@ -72,7 +77,7 @@
     var d = defaultState();
     s = s || {};
     d.tasks = Array.isArray(s.tasks) ? s.tasks.map(normalizeTask) : [];
-    d.projects = Array.isArray(s.projects) ? s.projects : [];
+    d.projects = Array.isArray(s.projects) ? s.projects.map(normalizeProject) : [];
     d.abilities = (Array.isArray(s.abilities) && s.abilities.length)
       ? s.abilities.map(function (a) { return { id: a.id, name: a.name, icon: a.icon || "⭐", color: a.color || "#3370ff", points: a.points || 0 }; })
       : DEFAULT_ABILITIES.map(function (a) { return Object.assign({}, a); });
@@ -105,6 +110,24 @@
       xpLogId: t.xpLogId || null,
     };
   }
+  function normalizeProject(p) {
+    p = p || {};
+    return {
+      id: p.id || uid(),
+      name: String(p.name || "未命名项目"),
+      color: p.color || "#3370ff",
+      goal: p.goal || "",
+      status: PROJECT_STATUS[p.status] ? p.status : "active",
+      due: p.due || "",
+      milestones: Array.isArray(p.milestones) ? p.milestones.map(function (m) {
+        return { id: m.id || uid(), title: String(m.title || ""), done: !!m.done };
+      }) : [],
+      createdAt: p.createdAt || Date.now(),
+    };
+  }
+  function newProject(name, color) {
+    return normalizeProject({ name: name, color: color || DEFAULT_COLORS[state.projects.length % DEFAULT_COLORS.length] });
+  }
   function migrateV1(arr) {
     var d = defaultState();
     var projMap = {};
@@ -112,8 +135,8 @@
       var pid = null;
       if (it.category) {
         if (!projMap[it.category]) {
-          pid = uid(); projMap[it.category] = pid;
-          d.projects.push({ id: pid, name: it.category, color: DEFAULT_COLORS[d.projects.length % DEFAULT_COLORS.length] });
+          var np = normalizeProject({ name: it.category, color: DEFAULT_COLORS[d.projects.length % DEFAULT_COLORS.length] });
+          pid = np.id; projMap[it.category] = pid; d.projects.push(np);
         } else pid = projMap[it.category];
       }
       d.tasks.push(normalizeTask({ title: it.title, notes: it.desc, projectId: pid, priority: it.priority, status: it.status, due: it.due, order: i }));
@@ -200,7 +223,7 @@
   function ensureProject(name) {
     if (!name) return null;
     for (var i = 0; i < state.projects.length; i++) if (state.projects[i].name === name) return state.projects[i].id;
-    var p = { id: uid(), name: name, color: DEFAULT_COLORS[state.projects.length % DEFAULT_COLORS.length] };
+    var p = newProject(name);
     state.projects.push(p);
     return p.id;
   }
@@ -578,6 +601,167 @@
     toast("能力分数已重置");
   }
 
+  // ---------------- Render: projects (long-term) ----------------
+  function projectStats(pid) {
+    var ts = state.tasks.filter(function (t) { return t.projectId === pid; });
+    var done = ts.filter(function (t) { return t.status === "done"; });
+    var today = todayStr();
+    var overdue = ts.filter(function (t) { return t.due && t.due < today && t.status !== "done"; }).length;
+    var open = ts.filter(function (t) { return t.status !== "done"; });
+    var nextDue = open.filter(function (t) { return t.due; }).sort(function (a, b) { return a.due < b.due ? -1 : 1; })[0];
+    var ab = {};
+    done.forEach(function (t) { if (t.xpApplied && t.xp) Object.keys(t.xp.gains).forEach(function (id) { ab[id] = (ab[id] || 0) + t.xp.gains[id]; }); });
+    return { total: ts.length, doneCount: done.length, open: open.length, overdue: overdue, nextDue: nextDue, pct: ts.length ? Math.round(done.length / ts.length * 100) : 0, abilities: ab, tasks: ts };
+  }
+  function renderProjects(root) {
+    var sorted = state.projects.slice().sort(function (a, b) {
+      var r = PROJECT_STATUS[a.status].rank - PROJECT_STATUS[b.status].rank;
+      if (r) return r;
+      var ad = a.due || "9999-99-99", bd = b.due || "9999-99-99";
+      if (ad !== bd) return ad < bd ? -1 : 1;
+      return a.createdAt - b.createdAt;
+    });
+    var html = '<div class="proj-grid">';
+    sorted.forEach(function (p) { html += projectCardHtml(p); });
+    // 未分类 pseudo-card
+    var unfiled = projectStats(null);
+    if (unfiled.total) {
+      html += '<div class="proj-card" data-pid="__none"><div class="proj-card-head"><span class="pdot" style="background:var(--muted)"></span>' +
+        '<span class="pname">未分类任务</span><span class="pcount">' + unfiled.total + " 项</span></div>" +
+        '<div class="pbar"><i style="width:' + unfiled.pct + '%;background:var(--muted)"></i></div>' +
+        '<div class="pmeta">完成 ' + unfiled.doneCount + "/" + unfiled.total + " · 点击查看</div></div>";
+    }
+    html += '<button class="proj-card proj-add-card" data-pid="__new">＋ 新建长期项目</button>';
+    html += "</div>";
+    root.innerHTML = html;
+  }
+  function projectCardHtml(p) {
+    var s = projectStats(p.id);
+    var st = PROJECT_STATUS[p.status];
+    var dueOver = p.due && p.due < todayStr() && p.status !== "done";
+    var msDone = p.milestones.filter(function (m) { return m.done; }).length;
+    var abChips = Object.keys(s.abilities).sort(function (a, b) { return s.abilities[b] - s.abilities[a]; }).slice(0, 4)
+      .map(function (id) { var a = ability(id); return a ? '<span class="xp-chip" style="background:' + esc(a.color) + '">' + a.icon + " " + s.abilities[id] + "</span>" : ""; }).join("");
+    return '<div class="proj-card' + (p.status === "done" ? " is-done" : "") + '" data-pid="' + p.id + '" style="--pc:' + esc(p.color) + '">' +
+      '<div class="proj-card-head"><span class="pdot" style="background:' + esc(p.color) + '"></span>' +
+        '<span class="pname">' + esc(p.name) + '</span>' +
+        '<span class="pstatus" style="color:' + st.color + ';border-color:' + st.color + '">' + st.name + "</span></div>" +
+      (p.goal ? '<div class="pgoal">' + esc(p.goal) + "</div>" : "") +
+      '<div class="pbar"><i style="width:' + s.pct + "%;background:" + esc(p.color) + '"></i></div>' +
+      '<div class="pmeta"><span>进度 ' + s.doneCount + "/" + s.total + "（" + s.pct + "%）</span>" +
+        (p.milestones.length ? '<span>🚩 里程碑 ' + msDone + "/" + p.milestones.length + "</span>" : "") + "</div>" +
+      '<div class="pmeta2">' +
+        (p.due ? '<span class="' + (dueOver ? "pdue-over" : "") + '">📅 ' + p.due + (dueOver ? " 逾期" : "") + "</span>" : '<span class="muted2">无截止日</span>') +
+        (s.overdue ? '<span class="pdue-over">⚠️ ' + s.overdue + " 项逾期</span>" : "") +
+      "</div>" +
+      (abChips ? '<div class="xp-gains">' + abChips + "</div>" : "") +
+      "</div>";
+  }
+  el("viewRoot").addEventListener("click", function (e) {
+    var pcard = e.target.closest("[data-pid]");
+    if (!pcard || ui.view !== "project") return;
+    var pid = pcard.dataset.pid;
+    if (pid === "__new") openProjectDetail(null);
+    else if (pid === "__none") { ui.view = "list"; ui.project = "none"; renderFilters(); el("projectFilter").value = "none"; render(); }
+    else openProjectDetail(pid);
+  });
+
+  // ---------------- Project detail modal ----------------
+  var modalMilestones = [];
+  var pdCurrentId = null;
+  function openProjectDetail(pid) {
+    var p = pid ? project(pid) : null;
+    pdCurrentId = pid;
+    el("pdTitle").textContent = p ? "编辑项目" : "新建长期项目";
+    el("pdName").value = p ? p.name : ""; el("pdName").classList.remove("err");
+    el("pdGoal").value = p ? p.goal : "";
+    el("pdColor").value = p ? p.color : DEFAULT_COLORS[state.projects.length % DEFAULT_COLORS.length];
+    el("pdStatus").value = p ? p.status : "active";
+    el("pdDue").value = p ? p.due : "";
+    modalMilestones = p ? p.milestones.map(function (m) { return { id: m.id, title: m.title, done: m.done }; }) : [];
+    el("pdDelete").hidden = !p;
+    renderPdBody();
+    showOverlay("projDetailOverlay");
+    setTimeout(function () { el("pdName").focus(); }, 60);
+  }
+  function renderPdBody() {
+    // milestones
+    el("pdMsList").innerHTML = modalMilestones.map(function (m, i) {
+      return '<li class="' + (m.done ? "done" : "") + '" data-i="' + i + '">' +
+        '<input type="checkbox" ' + (m.done ? "checked" : "") + ' data-ma="toggle" />' +
+        '<span>' + esc(m.title) + "</span><button data-ma=\"del\" title=\"删除\">✕</button></li>";
+    }).join("");
+    // task list of this project (only when editing an existing project)
+    var box = el("pdTasks");
+    if (!pdCurrentId) { box.innerHTML = '<div class="muted2" style="padding:8px 2px">保存项目后，可在这里管理它下面的任务。</div>'; return; }
+    var s = projectStats(pdCurrentId);
+    var open = sortTasks(s.tasks.filter(function (t) { return t.status !== "done"; }));
+    var done = s.tasks.filter(function (t) { return t.status === "done"; });
+    var html = '<div class="pd-stat">进度 ' + s.doneCount + "/" + s.total + "（" + s.pct + "%）" + (s.overdue ? ' · <span class="pdue-over">' + s.overdue + " 项逾期</span>" : "") + "</div>";
+    html += '<div class="pd-tasklist">';
+    if (!s.total) html += '<div class="muted2" style="padding:6px 2px">还没有任务。</div>';
+    open.concat(done).forEach(function (t) {
+      var dl = dueLabel(t.due), dc = dueClass(t.due, t.status);
+      html += '<div class="pd-task' + (t.status === "done" ? " is-done" : "") + '" data-id="' + t.id + '">' +
+        '<div class="card-check' + (t.status === "done" ? " on" : "") + '" data-pa="toggle">' + (t.status === "done" ? "✓" : "") + "</div>" +
+        '<div class="pd-task-title" data-pa="edit">' + esc(t.title) + (dl ? ' <span class="pill due ' + dc + '" style="font-size:11px">' + esc(dl) + "</span>" : "") + "</div></div>";
+    });
+    html += "</div>";
+    html += '<button class="btn" id="pdAddTask" style="margin-top:10px">＋ 在此项目下新建任务</button>';
+    box.innerHTML = html;
+    var addBtn = el("pdAddTask");
+    if (addBtn) addBtn.addEventListener("click", function () { hideOverlay("projDetailOverlay"); openTaskModal(null); setTimeout(function () { el("fProject").value = pdCurrentId; }, 70); });
+  }
+  el("pdMsList").addEventListener("click", function (e) {
+    var li = e.target.closest("li"); if (!li) return;
+    var i = +li.dataset.i;
+    if (e.target.dataset.ma === "del") { modalMilestones.splice(i, 1); renderPdBody(); }
+  });
+  el("pdMsList").addEventListener("change", function (e) {
+    var li = e.target.closest("li"); if (!li || e.target.dataset.ma !== "toggle") return;
+    modalMilestones[+li.dataset.i].done = e.target.checked; renderPdBody();
+  });
+  el("pdMsInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); var v = e.target.value.trim(); if (v) { modalMilestones.push({ id: uid(), title: v, done: false }); e.target.value = ""; renderPdBody(); } }
+  });
+  el("pdTasks").addEventListener("click", function (e) {
+    var row = e.target.closest(".pd-task"); if (!row) return;
+    var t = task(row.dataset.id); if (!t) return;
+    if (e.target.dataset.pa === "toggle") {
+      var ns = t.status === "done" ? "todo" : "done", prev = t.status;
+      t.status = ns; t.updatedAt = Date.now();
+      if (ns === "done" && prev !== "done") { t.completedAt = Date.now(); awardXp(t, true); }
+      else if (prev === "done" && ns !== "done") { unawardXp(t); }
+      save(); renderPdBody(); // refresh modal; main view re-renders on close
+    } else if (e.target.dataset.pa === "edit") {
+      hideOverlay("projDetailOverlay"); openTaskModal(t);
+    }
+  });
+  function saveProjectDetail() {
+    var name = el("pdName").value.trim();
+    if (!name) { el("pdName").classList.add("err"); el("pdName").focus(); return; }
+    var data = { name: name, goal: el("pdGoal").value.trim(), color: el("pdColor").value, status: el("pdStatus").value, due: el("pdDue").value, milestones: modalMilestones };
+    if (pdCurrentId) { var p = project(pdCurrentId); if (p) Object.assign(p, data); }
+    else { state.projects.push(normalizeProject(data)); }
+    hideOverlay("projDetailOverlay");
+    persistAndRender();
+    toast(pdCurrentId ? "项目已保存" : "项目已创建");
+  }
+  function deleteProjectDetail() {
+    var p = project(pdCurrentId); if (!p) return;
+    var n = state.tasks.filter(function (t) { return t.projectId === p.id; }).length;
+    if (!confirm("删除项目「" + p.name + "」？" + (n ? "其下 " + n + " 个任务将变为未分类（任务不会被删除）。" : ""))) return;
+    state.tasks.forEach(function (t) { if (t.projectId === p.id) t.projectId = null; });
+    state.projects = state.projects.filter(function (x) { return x.id !== p.id; });
+    hideOverlay("projDetailOverlay");
+    persistAndRender();
+    toast("项目已删除");
+  }
+  el("pdClose").addEventListener("click", function () { hideOverlay("projDetailOverlay"); });
+  el("pdCancel").addEventListener("click", function () { hideOverlay("projDetailOverlay"); });
+  el("pdSave").addEventListener("click", saveProjectDetail);
+  el("pdDelete").addEventListener("click", deleteProjectDetail);
+
   function emptyHtml() {
     var any = state.tasks.length > 0;
     return '<div class="empty"><div class="big">🗂️</div>' + (any ? "没有符合筛选条件的工作项" : "还没有工作项") +
@@ -590,11 +774,12 @@
     renderFilters();
     document.querySelectorAll(".view-tab").forEach(function (b) { b.classList.toggle("active", b.dataset.view === ui.view); });
     var controls = document.querySelector(".controls .control-right");
-    if (controls) controls.style.visibility = ui.view === "ability" ? "hidden" : "visible";
+    if (controls) controls.style.visibility = (ui.view === "ability" || ui.view === "project") ? "hidden" : "visible";
     var root = el("viewRoot");
     if (ui.view === "board") renderBoard(root);
     else if (ui.view === "list") renderList(root);
     else if (ui.view === "week") renderWeek(root);
+    else if (ui.view === "project") renderProjects(root);
     else renderAbility(root);
   }
   function renderFilters() {
@@ -774,7 +959,7 @@
   el("projAddForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var name = el("projName").value.trim(); if (!name) return;
-    state.projects.push({ id: uid(), name: name, color: el("projColor").value });
+    state.projects.push(normalizeProject({ name: name, color: el("projColor").value }));
     el("projName").value = ""; save(); renderProjList(); render();
   });
 
@@ -837,12 +1022,21 @@
   }
   function loadSample() {
     if (state.tasks.length && !confirm("载入示例会追加一批演示数据，继续？")) return;
-    var pids = {};
-    [["产品", "#3370ff"], ["运营", "#ff9a2e"], ["个人成长", "#18b566"]].forEach(function (a) {
-      var id = uid(); pids[a[0]] = id; state.projects.push({ id: id, name: a[0], color: a[1] });
-    });
     var today = new Date();
     function rel(n) { var d = new Date(today); d.setDate(d.getDate() + n); return ymd(d); }
+    var pids = {};
+    [
+      { name: "产品", color: "#3370ff", goal: "把新版产品打磨上线", status: "active", due: rel(30),
+        ms: [{ t: "需求评审通过", d: true }, { t: "完成核心开发", d: false }, { t: "灰度发布", d: false }] },
+      { name: "运营", color: "#ff9a2e", goal: "提升月活与用户留存", status: "active", due: rel(14),
+        ms: [{ t: "建立周报机制", d: true }, { t: "完成一次增长实验", d: false }] },
+      { name: "个人成长", color: "#18b566", goal: "持续学习，构建知识体系", status: "active", due: "",
+        ms: [{ t: "读完 3 本专业书", d: false }] },
+    ].forEach(function (a) {
+      var p = normalizeProject({ name: a.name, color: a.color, goal: a.goal, status: a.status, due: a.due,
+        milestones: a.ms.map(function (m) { return { id: uid(), title: m.t, done: m.d }; }) });
+      pids[a.name] = p.id; state.projects.push(p);
+    });
     var samples = [
       { title: "撰写 Q3 产品规划文档", notes: "包含目标、里程碑与资源评估", projectId: pids["产品"], priority: "high", status: "doing", due: rel(2),
         subtasks: [{ id: uid(), title: "收集各方需求", done: true }, { id: uid(), title: "排定里程碑", done: false }, { id: uid(), title: "评审会过审", done: false }] },
@@ -1111,7 +1305,8 @@
     else if (e.key === "1") setView("board");
     else if (e.key === "2") setView("list");
     else if (e.key === "3") setView("week");
-    else if (e.key === "4") setView("ability");
+    else if (e.key === "4") setView("project");
+    else if (e.key === "5") setView("ability");
   });
 
   // ---------------- Service worker ----------------

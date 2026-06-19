@@ -52,6 +52,7 @@
       <button class="view-tab" role="tab" data-view="board">📋 看板</button>
       <button class="view-tab" role="tab" data-view="list">☰ 列表</button>
       <button class="view-tab" role="tab" data-view="week">🗓️ 本周</button>
+      <button class="view-tab" role="tab" data-view="project">🗂️ 项目</button>
       <button class="view-tab" role="tab" data-view="ability">🧬 能力</button>
     </div>
 
@@ -158,6 +159,59 @@
   </div>
 </div>
 
+<!-- Project detail / editor modal -->
+<div class="overlay" id="projDetailOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pdTitle">
+    <div class="modal-head">
+      <h2 id="pdTitle">新建长期项目</h2>
+      <button class="icon-btn" id="pdClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="pdName">项目名称 *</label>
+        <input id="pdName" type="text" placeholder="例如：新版产品上线" />
+      </div>
+      <div class="field">
+        <label for="pdGoal">目标 / 描述</label>
+        <textarea id="pdGoal" rows="2" placeholder="一句话说明这个长期项目想达成什么…"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="pdStatus">状态</label>
+          <select id="pdStatus">
+            <option value="active">进行中</option>
+            <option value="paused">搁置</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pdDue">目标截止日期</label>
+          <input id="pdDue" type="date" />
+        </div>
+      </div>
+      <div class="field">
+        <label>颜色</label>
+        <input id="pdColor" type="color" value="#3370ff" style="width:52px;height:38px;padding:2px" />
+      </div>
+      <div class="field">
+        <label>里程碑</label>
+        <ul class="subtasks" id="pdMsList"></ul>
+        <div class="subtask-add"><input id="pdMsInput" type="text" placeholder="添加里程碑后回车…" /></div>
+      </div>
+      <div class="field">
+        <label>项目下的任务</label>
+        <div id="pdTasks"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger-ghost" id="pdDelete" hidden>删除项目</button>
+      <span class="spacer"></span>
+      <button class="btn" id="pdCancel">取消</button>
+      <button class="btn primary" id="pdSave">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Help modal -->
 <div class="overlay" id="helpOverlay" hidden>
   <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
@@ -170,7 +224,7 @@
       <table class="kbd-table">
         <tr><td><kbd>N</kbd></td><td>新建工作项</td></tr>
         <tr><td><kbd>/</kbd></td><td>聚焦搜索</td></tr>
-        <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td><td>看板 / 列表 / 本周 / 能力</td></tr>
+        <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd></td><td>看板 / 列表 / 本周 / 项目 / 能力</td></tr>
         <tr><td><kbd>?</kbd></td><td>打开本帮助</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>关闭弹窗</td></tr>
       </table>
@@ -188,6 +242,11 @@
         <li><b>本周</b>：把卡片拖到某一天即设为该天截止；拖到「无日期」清除日期。</li>
       </ul>
       <p class="muted">数据保存在本浏览器本地，定期用「导出备份」以防丢失。</p>
+      <h3>🗂️ 长期项目 & 短期任务</h3>
+      <ul>
+        <li><b>长期项目</b>是持续推进的大目标，带目标、状态、截止日和里程碑；<b>短期任务</b>归属于某个项目（编辑任务时选「项目」即可）。</li>
+        <li>在「🗂️ 项目」视图里，每个长期项目一张卡，自动汇总旗下任务的<b>进度</b>与<b>能力贡献</b>；点卡片可编辑项目、管理里程碑与任务。</li>
+      </ul>
       <h3>🧬 能力面板 & 🤖 AI</h3>
       <ul>
         <li><b>能力面板</b>：每完成一个工作项，系统会分析它锻炼了哪些能力并加分、升级，长期沉淀为你的能力雷达图。</li>

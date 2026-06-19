@@ -497,3 +497,43 @@ body::after {
 .seg button.active { background: var(--accent); color: #fff; }
 .key-row { display: flex; gap: 8px; }
 .key-row input { flex: 1; }
+
+/* ============ Projects view ============ */
+.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.proj-card {
+  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  backdrop-filter: blur(10px) saturate(1.3); -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  border: 1px solid var(--border); border-left: 3px solid var(--pc, var(--accent));
+  border-radius: 14px; padding: 15px 16px; box-shadow: var(--shadow-sm);
+  cursor: pointer; transition: box-shadow .15s, transform .14s var(--ease); text-align: left; width: 100%;
+}
+.proj-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.proj-card.is-done { opacity: .62; }
+.proj-card-head { display: flex; align-items: center; gap: 8px; }
+.proj-card .pdot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.proj-card .pname { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; word-break: break-word; }
+.proj-card .pcount { color: var(--muted); font-size: 12px; }
+.pstatus { font-size: 11.5px; padding: 1px 9px; border-radius: var(--r-pill); border: 1px solid; font-weight: 600; }
+.pgoal { color: var(--text-2); font-size: 12.5px; margin: 8px 0 0; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pbar { height: 8px; border-radius: 5px; background: var(--border); overflow: hidden; margin: 11px 0 8px; }
+.pbar > i { display: block; height: 100%; border-radius: 5px; transition: width .6s var(--ease); }
+.pmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-2); }
+.pmeta2 { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 5px; flex-wrap: wrap; }
+.pdue-over { color: var(--p-high); font-weight: 600; }
+.muted2 { color: var(--muted); }
+.proj-card .xp-gains { margin-top: 10px; }
+.proj-add-card {
+  display: flex; align-items: center; justify-content: center; min-height: 96px;
+  border: 2px dashed var(--border-strong); border-left: 2px dashed var(--border-strong);
+  background: transparent; color: var(--muted); font-size: 14px; font-weight: 500;
+}
+.proj-add-card:hover { border-color: var(--accent); color: var(--accent); transform: none; box-shadow: none; }
+
+/* Project detail modal task list */
+.pd-stat { font-size: 12.5px; color: var(--text-2); margin-bottom: 8px; }
+.pd-tasklist { display: flex; flex-direction: column; gap: 6px; }
+.pd-task { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+.pd-task.is-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
+.pd-task-title { flex: 1; min-width: 0; cursor: pointer; font-size: 13.5px; word-break: break-word; }
+.pd-task .card-check { width: 18px; height: 18px; }
