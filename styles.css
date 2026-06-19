@@ -398,7 +398,6 @@ body::after {
   background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   border-color: transparent;
 }
-.stat .num { background: linear-gradient(120deg, var(--text), var(--text)); }
 .card { transition: box-shadow .15s, transform .14s var(--ease), opacity .15s; }
 .card:hover { transform: translateY(-2px); }
 

@@ -1021,7 +1021,7 @@
   function saveSettings() {
     state.settings.ai.engine = tmpEngine;
     state.settings.ai.apiKey = el("setKey").value.trim();
-    state.settings.ai.model = el("setModel").value;
+    state.settings.ai.model = el("setModel").value.trim() || "gpt-4o";
     if (tmpEngine === "openai" && !state.settings.ai.apiKey) { toast("已切换到 OpenAI，但未填写 API Key，将暂用本地引擎"); }
     save(); updateAiEngineLabel();
     hideOverlay("settingsOverlay");
