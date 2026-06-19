@@ -37,6 +37,19 @@
 - ⚠️ **运行环境**：OpenAI 模式需要通过 **http(s)** 访问（GitHub Pages 或本地服务器都可以）。直接双击 `index.html`（`file://`）时浏览器同源策略会拦截跨域请求，此时请用本地引擎，或用下方的本地服务器方式打开。
 - ⚠️ **安全说明**：API Key 只保存在你浏览器本地（localStorage），由浏览器**直接**请求 OpenAI（SDK 的 `dangerouslyAllowBrowser` 选项）。请勿在公用电脑上填写密钥。这是个人本地工具的取舍——如需团队/生产使用，应改为经由你自己的后端代理调用，避免密钥暴露在前端。
 
+## 🖥️ macOS App（数据存本地文件，不怕清缓存/换浏览器）
+
+不想依赖浏览器缓存？仓库里的 [`mac/`](./mac/) 是一个用 **Xcode** 打开即可运行的原生 macOS 应用：用 `WKWebView` 封装同一套网页，但把数据落到磁盘真实文件
+`~/Library/Application Support/WorkPlanner/data.json`（每次改动自动保存、启动自动读回），并提供原生「导出 / 导入备份」菜单。详见 [`mac/README.md`](./mac/README.md)。
+
+```bash
+open mac/WorkPlanner.xcodeproj   # 用 Xcode 打开，选 My Mac，⌘R 运行
+# 或命令行构建：
+cd mac && xcodebuild -project WorkPlanner.xcodeproj -target WorkPlanner -configuration Release SYMROOT=build
+```
+
+> 网页有更新后，运行根目录的 `./sync-web.sh` 把最新网页同步进 App 的 `mac/WorkPlanner/web/`。
+
 ## 🚀 本地预览
 
 直接双击 `index.html` 即可使用。若要让 **Service Worker / PWA** 生效，需通过 http 访问：
