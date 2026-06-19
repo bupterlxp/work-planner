@@ -12,6 +12,7 @@
 		AC00000000000000000003 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000003 /* WebView.swift */; };
 		AC00000000000000000004 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000004 /* Store.swift */; };
 		AC00000000000000000005 /* web in Resources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000005 /* web */; };
+		AC00000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000006 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +21,7 @@
 		AB00000000000000000003 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		AB00000000000000000004 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		AB00000000000000000005 /* web */ = {isa = PBXFileReference; lastKnownFileType = folder; path = web; sourceTree = "<group>"; };
+		AB00000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA00000000000000000003 /* WorkPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WorkPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -49,6 +51,7 @@
 				AB00000000000000000002 /* ContentView.swift */,
 				AB00000000000000000003 /* WebView.swift */,
 				AB00000000000000000004 /* Store.swift */,
+				AB00000000000000000006 /* Assets.xcassets */,
 				AB00000000000000000005 /* web */,
 			);
 			path = WorkPlanner;
@@ -121,6 +124,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AC00000000000000000005 /* web in Resources */,
+				AC00000000000000000006 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,6 +195,7 @@
 		AA0000000000000000000E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -218,6 +223,7 @@
 		AA0000000000000000000F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;

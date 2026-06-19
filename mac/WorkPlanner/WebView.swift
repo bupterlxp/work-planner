@@ -59,7 +59,9 @@ final class WebController: NSObject, ObservableObject,
           var KEY = "\(Store.storageKey)";
           var SEED = \(seed);
           function post(v){ try { window.webkit.messageHandlers.store.postMessage(v); } catch (e) {} }
-          try { if (SEED !== null) localStorage.setItem(KEY, SEED); } catch (e) {}
+          // The data file is authoritative: seed from it, or clear the key when
+          // the file is absent so WKWebView's own localStorage can't shadow it.
+          try { if (SEED !== null) localStorage.setItem(KEY, SEED); else localStorage.removeItem(KEY); } catch (e) {}
           try {
             var proto = window.Storage && window.Storage.prototype;
             if (proto && !proto.__wpPatched) {
