@@ -1,6 +1,10 @@
 # 工作规划 · Work Planner
 
-一个零依赖、零构建、可离线安装的**工作规划记录**网页应用。看板 / 列表 / 本周 / 项目 / 能力五种视图，区分**长期项目**与**短期任务**，纯前端运行，数据保存在**你自己浏览器**的 localStorage 里，不上传任何服务器。
+> **🔗 在线体验：<https://bupterlxp.github.io/work-planner/>** —— 打开即用，无需登录、无需安装。
+
+一个零依赖、零构建、可离线安装的**工作规划记录**网页应用。看板 / 列表 / 本周 / 项目 / 能力五种视图，区分**长期项目**与**短期任务**，配有 **🧬 个人能力面板**与 **🤖 AI 工作总结**。纯前端运行，数据保存在**你自己浏览器**的 localStorage 里，不上传任何服务器。
+
+![vanilla-js](https://img.shields.io/badge/vanilla-JS-f7df1e) ![no-build](https://img.shields.io/badge/build-none-success) ![PWA](https://img.shields.io/badge/PWA-installable-5a0fc8) ![deploy](https://img.shields.io/badge/GitHub%20Pages-live-2ea44f)
 
 > 适合个人工作规划、任务跟踪、周计划安排。打开即用，可作为 PWA 安装到桌面/手机离线使用。
 
