@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="工作规划 — 看板、列表、本周计划三视图，纯本地存储、可离线安装的工作规划记录应用。" />
+<meta name="theme-color" content="#3370ff" />
+<title>工作规划 · Planner</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div id="app">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">工作规划</span>
+    </div>
+
+    <form class="quick-add" id="quickAddForm" autocomplete="off">
+      <input id="quickAdd" type="text" placeholder="快速添加：买咖啡机 #采购 !高 @明天 …  （回车）" aria-label="快速添加工作项" />
+      <button type="submit" class="btn primary" title="添加 (Enter)">添加</button>
+    </form>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" id="aiBtn" title="AI 总结" aria-label="AI 总结">🤖</button>
+      <button class="icon-btn" id="themeBtn" title="切换主题" aria-label="切换主题">🌗</button>
+      <button class="icon-btn" id="helpBtn" title="快捷键 (?)" aria-label="快捷键帮助">⌨️</button>
+      <div class="menu">
+        <button class="icon-btn" id="moreBtn" title="更多" aria-label="更多" aria-haspopup="true">⋯</button>
+        <div class="menu-pop" id="morePop" role="menu" hidden>
+          <button role="menuitem" data-act="ai-settings">⚙️ AI 设置</button>
+          <button role="menuitem" data-act="export">⬇️ 导出备份 (JSON)</button>
+          <button role="menuitem" data-act="import">⬆️ 导入备份</button>
+          <button role="menuitem" data-act="sample">✨ 载入示例数据</button>
+          <button role="menuitem" data-act="clear" class="danger">🗑️ 清空全部</button>
+        </div>
+      </div>
+      <input type="file" id="importFile" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <section class="stats" id="stats" aria-label="统计概览"></section>
+
+  <!-- Controls -->
+  <section class="controls">
+    <div class="views" role="tablist" aria-label="视图切换">
+      <button class="view-tab" role="tab" data-view="board">📋 看板</button>
+      <button class="view-tab" role="tab" data-view="list">☰ 列表</button>
+      <button class="view-tab" role="tab" data-view="week">🗓️ 本周</button>
+      <button class="view-tab" role="tab" data-view="ability">🧬 能力</button>
+    </div>
+
+    <div class="control-right">
+      <div class="search-box">
+        <span aria-hidden="true">🔍</span>
+        <input id="search" type="search" placeholder="搜索…" aria-label="搜索" />
+      </div>
+      <select id="projectFilter" class="select-sm" aria-label="按项目筛选"></select>
+      <select id="priorityFilter" class="select-sm" aria-label="按优先级筛选">
+        <option value="all">全部优先级</option>
+        <option value="high">高</option>
+        <option value="mid">中</option>
+        <option value="low">低</option>
+      </select>
+      <label class="hide-done">
+        <input type="checkbox" id="hideDone" /> 隐藏已完成
+      </label>
+    </div>
+  </section>
+
+  <!-- View container -->
+  <main id="viewRoot" class="view-root"></main>
+</div>
+
+<!-- Task editor modal -->
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle">新建工作项</h2>
+      <button class="icon-btn" id="modalClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fId" />
+      <div class="field">
+        <label for="fTitle">标题 *</label>
+        <input id="fTitle" type="text" placeholder="要做什么？" />
+      </div>
+      <div class="field">
+        <label for="fNotes">描述 / 备注</label>
+        <textarea id="fNotes" rows="3" placeholder="补充细节…"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="fProject">项目</label>
+          <select id="fProject"></select>
+        </div>
+        <div class="field">
+          <label for="fPriority">优先级</label>
+          <select id="fPriority">
+            <option value="high">🔴 高</option>
+            <option value="mid" selected>🟠 中</option>
+            <option value="low">🟢 低</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="fStatus">状态</label>
+          <select id="fStatus">
+            <option value="todo">待办</option>
+            <option value="doing">进行中</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fDue">截止日期</label>
+          <input id="fDue" type="date" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>子任务（清单）</label>
+        <ul class="subtasks" id="subList"></ul>
+        <div class="subtask-add">
+          <input id="subInput" type="text" placeholder="添加子任务后回车…" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger-ghost" id="deleteBtn" hidden>删除</button>
+      <span class="spacer"></span>
+      <button class="btn" id="cancelBtn">取消</button>
+      <button class="btn primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Projects manager modal -->
+<div class="overlay" id="projOverlay" hidden>
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="projTitle">
+    <div class="modal-head">
+      <h2 id="projTitle">管理项目</h2>
+      <button class="icon-btn" id="projClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <ul class="proj-list" id="projList"></ul>
+      <form class="proj-add" id="projAddForm">
+        <input id="projName" type="text" placeholder="新项目名称…" />
+        <input id="projColor" type="color" value="#3370ff" title="项目颜色" />
+        <button class="btn primary" type="submit">添加</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-head">
+      <h2 id="helpTitle">快捷键 & 用法</h2>
+      <button class="icon-btn" id="helpClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body help-body">
+      <h3>键盘快捷键</h3>
+      <table class="kbd-table">
+        <tr><td><kbd>N</kbd></td><td>新建工作项</td></tr>
+        <tr><td><kbd>/</kbd></td><td>聚焦搜索</td></tr>
+        <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td><td>看板 / 列表 / 本周 / 能力</td></tr>
+        <tr><td><kbd>?</kbd></td><td>打开本帮助</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>关闭弹窗</td></tr>
+      </table>
+      <h3>快速添加语法</h3>
+      <p>在顶部输入框里，一行写完所有信息：</p>
+      <ul>
+        <li><code>#项目名</code> — 归入项目（不存在会自动创建）</li>
+        <li><code>!高</code> / <code>!中</code> / <code>!低</code>（或 <code>!h !m !l</code>）— 优先级</li>
+        <li><code>@今天</code> <code>@明天</code> <code>@后天</code> <code>@周一</code>…<code>@周日</code> 或 <code>@2026-07-01</code> — 截止日期</li>
+      </ul>
+      <p class="muted">例：<code>完成季度汇报 #规划 !高 @周五</code></p>
+      <h3>拖拽</h3>
+      <ul>
+        <li><b>看板</b>：拖动卡片在「待办 / 进行中 / 已完成」之间移动，或调整顺序。</li>
+        <li><b>本周</b>：把卡片拖到某一天即设为该天截止；拖到「无日期」清除日期。</li>
+      </ul>
+      <p class="muted">数据保存在本浏览器本地，定期用「导出备份」以防丢失。</p>
+      <h3>🧬 能力面板 & 🤖 AI</h3>
+      <ul>
+        <li><b>能力面板</b>：每完成一个工作项，系统会分析它锻炼了哪些能力并加分、升级，长期沉淀为你的能力雷达图。</li>
+        <li><b>AI 总结</b>：点右上角 🤖 一键生成今日/本周工作进展总结。默认离线本地引擎；在「AI 设置」里填入 OpenAI API Key 可切换到 OpenAI，更智能。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- AI summary modal -->
+<div class="overlay" id="aiOverlay" hidden>
+  <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="modal-head">
+      <h2 id="aiTitle">🤖 AI 工作总结</h2>
+      <button class="icon-btn" id="aiClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ai-tabs" id="aiTabs">
+        <button class="ai-tab active" data-range="today">今日</button>
+        <button class="ai-tab" data-range="week">本周</button>
+        <button class="ai-tab" data-range="all">全部进行中</button>
+        <span class="ai-engine" id="aiEngine"><span class="dot2"></span>本地引擎</span>
+      </div>
+      <div class="ai-out" id="aiOut"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="aiSettingsLink">⚙️ 接入 OpenAI（更强）</button>
+      <span class="spacer"></span>
+      <button class="btn" id="aiCopy">复制</button>
+      <button class="btn primary" id="aiRegen">重新生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI settings modal -->
+<div class="overlay" id="settingsOverlay" hidden>
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="modal-head">
+      <h2 id="setTitle">⚙️ AI 设置</h2>
+      <button class="icon-btn" id="setClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>分析引擎</label>
+        <div class="seg" id="engineSeg">
+          <button data-engine="local">本地（离线·免费）</button>
+          <button data-engine="openai">OpenAI（更智能）</button>
+        </div>
+        <div class="hint">本地引擎用关键词规则分析，无需联网、不花钱；OpenAI 引擎用官方 SDK 调用你自己的 API，对总结与能力归因更精准。</div>
+      </div>
+      <div id="aiFields">
+        <div class="field">
+          <label for="setKey">OpenAI API Key</label>
+          <div class="key-row">
+            <input id="setKey" type="password" placeholder="sk-..." autocomplete="off" />
+            <button class="btn" id="setKeyToggle" type="button">显示</button>
+          </div>
+          <div class="hint warn">⚠️ 密钥仅保存在你的浏览器本地（localStorage），并由你的浏览器直接请求 OpenAI。请勿在公用电脑上使用。</div>
+        </div>
+        <div class="field">
+          <label for="setModel">模型</label>
+          <select id="setModel">
+            <option value="gpt-4o">gpt-4o（强）</option>
+            <option value="gpt-4o-mini">gpt-4o-mini（更快更省）</option>
+            <option value="gpt-4.1">gpt-4.1</option>
+            <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button class="btn" id="setCancel">取消</button>
+      <button class="btn primary" id="setSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level-up celebration -->
+<div class="levelup" id="levelup" hidden>
+  <div class="lu-card"><div id="luTitle">⬆️ 升级！</div><div class="lu-sub" id="luSub"></div></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" hidden role="status" aria-live="polite">
+  <span id="toastMsg"></span>
+  <button id="toastAction" hidden></button>
+</div>
+
+<script src="./app.js"></script>
+</body>
+</html>
