@@ -646,20 +646,21 @@
     done.forEach(function (t) { if (t.xpApplied && t.xp) Object.keys(t.xp.gains).forEach(function (id) { ab[id] = (ab[id] || 0) + t.xp.gains[id]; }); });
     return { total: ts.length, doneCount: done.length, open: open.length, overdue: overdue, nextDue: nextDue, pct: ts.length ? Math.round(done.length / ts.length * 100) : 0, abilities: ab, tasks: ts };
   }
-  // Map a project to a "process" status badge in the neurohtop monitor.
-  function neuroStatus(p, s) {
-    if (p.status === "done") return { label: "DONE", color: "#34d399" };
-    if (p.status === "paused") return { label: "SUSPENDED", color: "#f87171" };
-    if (s.total === 0) return { label: "IDLE", color: "#64748b" };
-    if (s.overdue > 0) return { label: "OVERLOAD", color: "#fbbf24" };
-    return { label: "RUNNING", color: "#4ade80" };
+  // Treat each long-term project as a "process": map its state to a status badge.
+  function procStatus(p, s) {
+    if (p.status === "done") return { label: "DONE", color: "var(--done)" };
+    if (p.status === "paused") return { label: "SUSPENDED", color: "var(--p-mid)" };
+    if (s.total === 0) return { label: "IDLE", color: "var(--muted)" };
+    if (s.overdue > 0) return { label: "OVERLOAD", color: "var(--danger)" };
+    return { label: "RUNNING", color: "var(--accent)" };
   }
-  function neuroRow(pid, num, nameHtml, pct, color, label) {
-    return '<div class="np-row" data-pid="' + pid + '">' +
-      '<span class="np-pid">' + num + '</span>' +
-      '<span class="np-name">' + nameHtml + '</span>' +
-      '<span class="np-bar"><i style="width:' + pct + '%"></i></span>' +
-      '<span class="np-stat" style="color:' + color + '"><b>' + pct + '%</b> ' + label + '</span>' +
+  function procRow(pid, num, nameHtml, pct, barColor, statColor, label) {
+    return '<div class="pmon-row" data-pid="' + pid + '">' +
+      '<span class="pmon-pid">#' + num + '</span>' +
+      '<span class="pmon-name">' + nameHtml + '</span>' +
+      '<span class="pmon-load"><span class="pmon-bar"><i style="width:' + pct + '%;background:' + barColor + '"></i></span>' +
+        '<span class="pmon-pct">' + pct + '%</span></span>' +
+      '<span class="pstatus pmon-badge" style="color:' + statColor + ';border-color:' + statColor + '">' + label + '</span>' +
       '</div>';
   }
   function renderProjects(root) {
@@ -675,46 +676,40 @@
       var s = projectStats(p.id);
       doneTotal += s.doneCount; overdueTotal += s.overdue;
       if (p.createdAt) minCreated = Math.min(minCreated, p.createdAt);
-      var st = neuroStatus(p, s);
+      var st = procStatus(p, s);
       var msTotal = p.milestones.length;
       var msDone = p.milestones.filter(function (m) { return m.done; }).length;
-      var msTag = msTotal ? ' <span class="np-ms">▸' + msDone + '/' + msTotal + '</span>' : '';
-      rows += neuroRow(p.id, ("00" + (i + 1)).slice(-3), esc(p.name) + msTag, s.pct, st.color, st.label);
+      var msTag = msTotal ? ' <span class="pmon-ms">▸里程碑 ' + msDone + '/' + msTotal + '</span>' : '';
+      rows += procRow(p.id, ("00" + (i + 1)).slice(-3), esc(p.name) + msTag, s.pct, esc(p.color), st.color, st.label);
     });
-    // 未分类任务 → a background/system process row
+    // 未分类任务 → a background process row
     var unfiled = projectStats(null);
     if (unfiled.total) {
       doneTotal += unfiled.doneCount; overdueTotal += unfiled.overdue;
       var ust = unfiled.overdue > 0
-        ? { label: "OVERLOAD", color: "#fbbf24" }
-        : { label: "BACKGROUND", color: "#64748b" };
-      rows += neuroRow("__none", "sys", '<span class="np-sys">未分类任务</span>', unfiled.pct, ust.color, ust.label);
+        ? { label: "OVERLOAD", color: "var(--danger)" }
+        : { label: "BACKGROUND", color: "var(--muted)" };
+      rows += procRow("__none", "sys", '<span class="pmon-sys">未分类任务</span>', unfiled.pct, "var(--muted)", ust.color, ust.label);
     }
-    rows += '<div class="np-row np-add" data-pid="__new"><span>＋ spawn_process&nbsp;&nbsp;—&nbsp;&nbsp;新建长期项目</span></div>';
+    rows += '<div class="pmon-row pmon-add" data-pid="__new"><span>＋ 新建长期项目</span></div>';
 
     var year = minCreated === Infinity ? new Date().getFullYear() : new Date(minCreated).getFullYear();
     var procN = state.projects.length + (unfiled.total ? 1 : 0);
     var openAll = state.tasks.filter(function (t) { return t.status !== "done"; }).length;
     var statusMsg;
-    if (!procN) statusMsg = "spawn your first long-term process …";
-    else if (overdueTotal > 0) statusMsg = "rerouting cycles to " + overdueTotal + " overdue task(s) …";
-    else if (state.tasks.length && openAll === 0) statusMsg = "all processes nominal — ship it 🚀";
-    else statusMsg = "building things that actually ship";
+    if (!procN) statusMsg = "等待第一个长期进程启动…";
+    else if (overdueTotal > 0) statusMsg = "正在把算力调度给 " + overdueTotal + " 个逾期任务…";
+    else if (state.tasks.length && openAll === 0) statusMsg = "全部进程正常 — 发布吧 🚀";
+    else statusMsg = "正在推进手头的项目";
 
     root.innerHTML =
-      '<div class="neuro">' +
-        '<div class="neuro-title">🧠 大脑进程监视器</div>' +
-        '<div class="neuro-term">' +
-          '<div class="neuro-bar"><span class="neuro-dot r"></span><span class="neuro-dot y"></span><span class="neuro-dot g"></span>' +
-            '<span class="neuro-bar-title">neurohtop — brain process monitor</span><span class="neuro-spacer"></span></div>' +
-          '<div class="neuro-body">' +
-            '<div class="np-row np-head"><span>PID</span><span>PROCESS</span><span>CPU</span><span>STATUS</span></div>' +
-            rows +
-            '<div class="np-foot">' +
-              '<div>load average: done <span class="np-up">↑' + doneTotal + '</span>&nbsp;&nbsp;overdue <span class="np-dn">↓' + overdueTotal + '</span>&nbsp;&nbsp;processes = ' + procN + '&nbsp;&nbsp;uptime = since ' + year + '</div>' +
-              '<div class="np-cmd">$ status: ' + statusMsg + '<span class="np-cursor"></span></div>' +
-            '</div>' +
-          '</div>' +
+      '<div class="panel pmon">' +
+        '<h3>🧠 大脑进程监视器 <span class="sub">把长期项目当作进程来跑</span></h3>' +
+        '<div class="pmon-head"><span>PID</span><span>进程</span><span>负载</span><span>状态</span></div>' +
+        rows +
+        '<div class="pmon-foot">' +
+          '<div class="pmon-load-avg">load average&nbsp;&nbsp;完成 <b class="up">↑' + doneTotal + '</b>&nbsp;·&nbsp;逾期 <b class="dn">↓' + overdueTotal + '</b>&nbsp;·&nbsp;进程 ' + procN + '&nbsp;·&nbsp;运行自 ' + year + '</div>' +
+          '<div class="pmon-cmd"><span class="pmon-prompt">$</span> 状态：' + statusMsg + '<span class="pmon-cursor"></span></div>' +
         '</div>' +
       '</div>';
   }

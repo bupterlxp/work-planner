@@ -459,59 +459,52 @@ body::after {
 .proj-ab-total { margin-left: auto; font-size: 12px; color: var(--muted); }
 .proj-ab-row .xp-gains { margin-top: 0; }
 
-/* ===== neurohtop — brain process monitor (project view) ===== */
-.neuro { max-width: 1120px; margin: 0 auto; }
-.neuro-title { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; letter-spacing: .01em; color: var(--text); margin: 2px 2px 16px; }
-.neuro-term {
-  position: relative;
-  border-radius: 16px;
-  background-color: #0a0e1a;
-  background-image: radial-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px);
-  background-size: 22px 22px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .5), 0 0 40px rgba(124, 92, 255, .12);
-  overflow: hidden;
+/* ===== 大脑进程监视器 — project view as a process monitor (theme-native) ===== */
+.pmon { max-width: 980px; margin: 0 auto; }
+.pmon-head, .pmon-row {
+  display: grid;
+  grid-template-columns: 3.4em minmax(7em, 1.4fr) minmax(150px, 1.8fr) 7.6em;
+  align-items: center;
+  gap: 16px;
 }
-/* glowing gradient border ring */
-.neuro-term::before {
-  content: ""; position: absolute; inset: 0; border-radius: 16px; padding: 1.5px;
-  background: linear-gradient(135deg, #22d3ee, #a855f7 55%, #ec4899);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-  pointer-events: none;
+.pmon-head {
+  font-size: 11.5px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase;
+  padding: 0 10px 11px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
 }
-.neuro-bar { display: flex; align-items: center; gap: 8px; padding: 13px 18px; border-bottom: 1px solid rgba(255, 255, 255, .07); background: rgba(255, 255, 255, .015); }
-.neuro-dot { width: 12px; height: 12px; border-radius: 50%; }
-.neuro-dot.r { background: #ff5f57; } .neuro-dot.y { background: #febc2e; } .neuro-dot.g { background: #28c840; }
-.neuro-bar-title { flex: 1; text-align: center; color: #7b8aa3; font-size: 13px; letter-spacing: .06em; }
-.neuro-spacer { width: 52px; }
-.neuro-body { padding: 18px 22px 18px; }
-.np-row { display: grid; grid-template-columns: 3.6em minmax(7em, 17em) 1fr 9.5em; align-items: center; gap: 16px; padding: 11px 8px; border-radius: 8px; font-size: 14px; }
-.np-head { color: #22d3ee; font-weight: 700; letter-spacing: .14em; font-size: 12px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, .07); border-radius: 0; }
-.np-row[data-pid] { cursor: pointer; transition: background .15s ease; }
-.np-row[data-pid]:hover { background: rgba(124, 92, 255, .1); }
-.np-pid { color: #5b6b86; }
-.np-name { color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.np-name .np-ms { color: #5b6b86; font-size: 12px; }
-.np-name .np-sys { color: #94a3b8; font-style: italic; }
-.np-bar { height: 16px; border-radius: 6px; background: #16203a; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05); }
-.np-bar > i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #22d3ee, #7c5cff 55%, #ec4899); box-shadow: 0 0 14px rgba(168, 85, 247, .55); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
-.np-stat { font-weight: 700; font-size: 13px; letter-spacing: .04em; white-space: nowrap; }
-.np-stat b { font-weight: 800; }
-.np-add { grid-template-columns: 1fr; color: #5b6b86; }
-.np-add:hover { color: #22d3ee; background: rgba(34, 211, 238, .08); }
-.np-foot { margin-top: 16px; padding: 14px 8px 2px; border-top: 1px solid rgba(255, 255, 255, .07); color: #7b8aa3; font-size: 13px; line-height: 2; }
-.np-foot .np-up { color: #4ade80; } .np-foot .np-dn { color: #fbbf24; }
-.np-cmd { color: #94a3b8; }
-.np-cursor { display: inline-block; width: 8px; height: 15px; margin-left: 5px; vertical-align: text-bottom; background: #22d3ee; box-shadow: 0 0 8px #22d3ee; animation: npBlink 1.05s steps(2) infinite; }
-@keyframes npBlink { 50% { opacity: 0; } }
-@media (max-width: 640px) {
-  .np-row { grid-template-columns: 2.6em 1fr 6.5em; gap: 10px; }
-  .np-bar { display: none; }
-  .neuro-bar-title { font-size: 11px; } .neuro-spacer { width: 40px; }
+.pmon-head span:last-child, .pmon-badge { justify-self: start; }
+.pmon-row { padding: 12px 10px; border-radius: var(--radius-sm); border-bottom: 1px solid var(--border); }
+.pmon-row:last-of-type { border-bottom: none; }
+.pmon-row[data-pid] { cursor: pointer; transition: background .15s var(--ease); }
+.pmon-row[data-pid]:hover { background: var(--accent-soft); }
+.pmon-pid { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+.pmon-name { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pmon-name .pmon-ms { color: var(--muted); font-size: 12px; font-weight: 500; margin-left: 6px; }
+.pmon-name .pmon-sys { color: var(--text-2); font-style: italic; }
+.pmon-load { display: flex; align-items: center; gap: 10px; }
+.pmon-bar { flex: 1; height: 8px; border-radius: 5px; background: var(--border); overflow: hidden; }
+.pmon-bar > i { display: block; height: 100%; border-radius: 5px; transition: width .6s var(--ease); }
+.pmon-pct { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); min-width: 3.2em; text-align: right; }
+.pmon-badge { letter-spacing: .04em; }
+.pmon-add { color: var(--muted); font-weight: 600; justify-items: start; }
+.pmon-add span { grid-column: 1 / -1; }
+.pmon-add:hover { color: var(--accent-text); background: var(--accent-soft); }
+.pmon-foot {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 12.5px; line-height: 2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.pmon-load-avg b { font-weight: 700; }
+.pmon-load-avg .up { color: var(--done); } .pmon-load-avg .dn { color: var(--p-mid); }
+.pmon-cmd { color: var(--text-2); }
+.pmon-prompt { color: var(--accent-text); font-weight: 700; }
+.pmon-cursor { display: inline-block; width: 7px; height: 14px; margin-left: 4px; vertical-align: text-bottom; background: var(--accent); border-radius: 1px; animation: pmonBlink 1.05s steps(2) infinite; }
+@keyframes pmonBlink { 50% { opacity: 0; } }
+@media (max-width: 600px) {
+  .pmon-head, .pmon-row { grid-template-columns: 2.6em 1fr 6.2em; gap: 10px; }
+  .pmon-load { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .np-bar > i { transition: none; } .np-cursor { animation: none; }
+  .pmon-bar > i { transition: none; } .pmon-cursor { animation: none; }
 }
 
 /* Level-up celebration */
