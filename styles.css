@@ -549,6 +549,7 @@ body::after {
 /* Settings */
 .field .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
 .field .warn { color: var(--p-mid); }
+.field .ok { color: var(--done); }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .seg button { border: none; background: var(--bg); color: var(--text-2); padding: 8px 16px; font-size: 13px; }
 .seg button.active { background: var(--accent); color: #fff; }

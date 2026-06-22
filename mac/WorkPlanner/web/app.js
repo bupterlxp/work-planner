@@ -1134,14 +1134,37 @@
     }
     return attempt();
   }
-  function getOpenAI() {
+  function buildOpenAIClient(apiKey, baseUrl) {
     return loadOpenAISDK().then(function (mod) {
       var OpenAI = mod.default || mod.OpenAI;
-      var cfg = { apiKey: state.settings.ai.apiKey, dangerouslyAllowBrowser: true };
-      var base = (state.settings.ai.baseUrl || "").trim();
-      if (base) cfg.baseURL = base.replace(/\/+$/, ""); // any OpenAI-compatible endpoint
+      var cfg = { apiKey: apiKey, dangerouslyAllowBrowser: true };
+      var base = (baseUrl || "").trim().replace(/\/+$/, "");
+      if (base) cfg.baseURL = base; // any OpenAI-compatible endpoint
       return new OpenAI(cfg);
     });
+  }
+  function getOpenAI() {
+    return buildOpenAIClient(state.settings.ai.apiKey, state.settings.ai.baseUrl);
+  }
+  // Test connectivity using the values currently in the settings form.
+  function testAIConnection() {
+    var key = el("setKey").value.trim();
+    var base = el("setBaseUrl").value.trim();
+    var model = el("setModel").value.trim() || "gpt-4o";
+    var out = el("setTestResult"), btn = el("setTest");
+    if (!key) { out.textContent = "请先填写 API Key"; out.className = "hint warn"; return; }
+    out.textContent = "测试中…"; out.className = "hint"; btn.disabled = true;
+    buildOpenAIClient(key, base).then(function (client) {
+      return client.chat.completions.create({ model: model, messages: [{ role: "user", content: "ping" }] });
+    }).then(function (res) {
+      var ok = res && res.choices && res.choices.length;
+      out.textContent = ok ? "✅ 连接成功 · 模型 " + model + " 响应正常" : "✅ 已连接（但无内容返回）";
+      out.className = "hint ok";
+    }).catch(function (e) {
+      var msg = (e && e.message) ? e.message : String(e);
+      if (/Failed to fetch|NetworkError|CORS/i.test(msg)) msg += "（可能是该接口未开启浏览器跨域 CORS）";
+      out.textContent = "❌ 失败：" + msg; out.className = "hint warn";
+    }).then(function () { btn.disabled = false; });
   }
   function callOpenAI(messages, opts) {
     opts = opts || {};
@@ -1265,6 +1288,7 @@
     el("setKey").type = "password"; el("setKeyToggle").textContent = "显示";
     el("setBaseUrl").value = state.settings.ai.baseUrl || "";
     el("setModel").value = state.settings.ai.model || "gpt-4o";
+    el("setTestResult").textContent = ""; el("setTestResult").className = "hint";
     updateEngineSeg();
     showOverlay("settingsOverlay");
   }
@@ -1349,6 +1373,7 @@
   el("setClose").addEventListener("click", function () { hideOverlay("settingsOverlay"); });
   el("setCancel").addEventListener("click", function () { hideOverlay("settingsOverlay"); });
   el("setSave").addEventListener("click", saveSettings);
+  el("setTest").addEventListener("click", testAIConnection);
   el("engineSeg").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; tmpEngine = b.dataset.engine; updateEngineSeg(); });
   el("setKeyToggle").addEventListener("click", function () {
     var k = el("setKey"); k.type = k.type === "password" ? "text" : "password";
