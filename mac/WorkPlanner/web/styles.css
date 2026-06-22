@@ -529,6 +529,18 @@ body::after {
 .ai-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .ai-engine { margin-left: auto; font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .ai-engine .dot2 { width: 7px; height: 7px; border-radius: 50%; background: var(--done); }
+.ai-histbtn { margin-left: 10px; padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--border); background: var(--bg); color: var(--text-2); font-size: 12px; }
+.ai-histbtn.active { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
+.ai-history { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 14px; max-height: 240px; overflow: auto; }
+.ai-hist-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.btn-link { background: none; border: none; color: var(--accent-text); font-size: 12px; cursor: pointer; padding: 0; }
+.ai-hist-list { display: flex; flex-direction: column; }
+.ai-hist-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px; background: none; border: none; border-bottom: 1px solid var(--border); cursor: pointer; color: var(--text); font-size: 13px; }
+.ai-hist-item:last-child { border-bottom: none; }
+.ai-hist-item:hover { background: var(--accent-soft); }
+.aih-when { font-variant-numeric: tabular-nums; color: var(--text); min-width: 5.5em; }
+.aih-meta { color: var(--muted); font-size: 12px; }
+.ai-cache-note { font-size: 12px; color: var(--text-2); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 7px 11px; margin-bottom: 12px; }
 .ai-out {
   min-height: 160px; max-height: 56vh; overflow: auto; line-height: 1.7;
   background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid var(--border);

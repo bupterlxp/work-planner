@@ -56,6 +56,7 @@
       projects: [],
       abilities: DEFAULT_ABILITIES.map(function (a) { return Object.assign({}, a); }),
       xpLog: [],
+      summaries: [],
       settings: { theme: "system", lastView: "board", ai: { engine: "local", apiKey: "", baseUrl: "", model: "gpt-4o" } },
     };
   }
@@ -82,6 +83,7 @@
       ? s.abilities.map(function (a) { return { id: a.id, name: a.name, icon: a.icon || "⭐", color: a.color || "#3370ff", points: a.points || 0 }; })
       : DEFAULT_ABILITIES.map(function (a) { return Object.assign({}, a); });
     d.xpLog = Array.isArray(s.xpLog) ? s.xpLog : [];
+    d.summaries = Array.isArray(s.summaries) ? s.summaries : [];
     d.settings = Object.assign(d.settings, s.settings || {});
     d.settings.ai = Object.assign({ engine: "local", apiKey: "", baseUrl: "", model: "gpt-4o" }, (s.settings && s.settings.ai) || {});
     // migrate legacy Claude config → OpenAI
@@ -1253,31 +1255,72 @@
   }
 
   // AI modal
-  function openAi() { aiRange = "today"; updateAiTabs(); updateAiEngineLabel(); showOverlay("aiOverlay"); generateAi(); }
+  var RANGE_LABEL = { today: "今日", week: "本周", all: "全部进行中" };
+  var aiCurrentMd = "";
+  function openAi() {
+    aiRange = "today"; updateAiTabs(); updateAiEngineLabel();
+    el("aiHistory").hidden = true; el("aiHistBtn").classList.remove("active");
+    showOverlay("aiOverlay"); showAi(false);
+  }
   function updateAiTabs() { document.querySelectorAll(".ai-tab").forEach(function (b) { b.classList.toggle("active", b.dataset.range === aiRange); }); }
   function updateAiEngineLabel() {
     var ai = state.settings.ai, useAI = ai.engine === "openai" && ai.apiKey;
     el("aiEngine").innerHTML = '<span class="dot2" style="background:' + (useAI ? "var(--accent)" : "var(--done)") + '"></span>' + (useAI ? "OpenAI · " + ai.model : "本地引擎");
   }
-  var aiCurrentMd = "";
-  function generateAi() {
+  function fmtDateTime(ts) { var d = new Date(ts); function p(n) { return (n < 10 ? "0" : "") + n; } return (d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); }
+  function latestSummary(range) { for (var i = 0; i < state.summaries.length; i++) if (state.summaries[i].range === range) return state.summaries[i]; return null; }
+  function saveSummary(range, engine, md) {
+    state.summaries.unshift({ id: uid(), at: Date.now(), range: range, engine: engine, md: md });
+    if (state.summaries.length > 50) state.summaries.length = 50;
+    save();
+  }
+  function aiNote(icon, text) { return '<div class="ai-cache-note">' + icon + " " + text + "</div>"; }
+  // Show the current range's summary: cached latest unless force, else (re)generate + archive.
+  function showAi(force) {
+    var out = el("aiOut");
+    var cached = latestSummary(aiRange);
+    if (!force && cached) {
+      aiCurrentMd = cached.md;
+      out.innerHTML = aiNote("📌", "显示最近一次（" + relTime(cached.at) + " · " + (cached.engine === "openai" ? "OpenAI" : "本地") + "）— 点「重新生成」刷新") + mdToHtml(cached.md);
+      return;
+    }
     if (aiBusy) return;
     var ai = state.settings.ai, useAI = ai.engine === "openai" && ai.apiKey;
-    var out = el("aiOut");
     if (!useAI) {
-      aiCurrentMd = summarizeLocal(aiRange);
+      aiCurrentMd = summarizeLocal(aiRange); saveSummary(aiRange, "local", aiCurrentMd);
       out.innerHTML = mdToHtml(aiCurrentMd);
       return;
     }
     aiBusy = true;
     out.innerHTML = '<div class="ai-loading"><span class="spinner"></span> OpenAI 正在分析你的工作…</div>';
     summarizeOpenAI(aiRange).then(function (md) {
-      aiCurrentMd = md; out.innerHTML = mdToHtml(md); aiBusy = false;
+      aiBusy = false; aiCurrentMd = md; saveSummary(aiRange, "openai", md); out.innerHTML = mdToHtml(md);
     }).catch(function (e) {
-      aiBusy = false;
-      aiCurrentMd = summarizeLocal(aiRange);
+      aiBusy = false; aiCurrentMd = summarizeLocal(aiRange); saveSummary(aiRange, "local", aiCurrentMd);
       out.innerHTML = '<div class="ai-empty">⚠️ OpenAI 调用失败，已回退到本地引擎。<br><span style="font-size:12px">' + esc(e.message) + "</span></div>" + mdToHtml(aiCurrentMd);
     });
+  }
+  function toggleAiHistory() {
+    var box = el("aiHistory"), btn = el("aiHistBtn");
+    if (!box.hidden) { box.hidden = true; btn.classList.remove("active"); return; }
+    renderAiHistory(); box.hidden = false; btn.classList.add("active");
+  }
+  function renderAiHistory() {
+    var box = el("aiHistory");
+    if (!state.summaries.length) { box.innerHTML = '<div class="ai-empty">还没有历史总结。生成一次后会自动存档在这里。</div>'; return; }
+    var html = '<div class="ai-hist-head"><span>历史总结 · ' + state.summaries.length + ' 条</span><button class="btn-link" id="aiHistClear">清空</button></div><div class="ai-hist-list">';
+    state.summaries.forEach(function (e) {
+      html += '<button class="ai-hist-item" data-id="' + e.id + '"><span class="aih-when">' + fmtDateTime(e.at) + '</span>' +
+        '<span class="aih-meta">' + (RANGE_LABEL[e.range] || e.range) + ' · ' + (e.engine === "openai" ? "OpenAI" : "本地") + '</span></button>';
+    });
+    box.innerHTML = html + '</div>';
+  }
+  function viewAiHistory(id) {
+    var e = null; for (var i = 0; i < state.summaries.length; i++) if (state.summaries[i].id === id) { e = state.summaries[i]; break; }
+    if (!e) return;
+    aiCurrentMd = e.md;
+    el("aiOut").innerHTML = aiNote("🕘", "查看历史（" + fmtDateTime(e.at) + " · " + (RANGE_LABEL[e.range] || e.range) + " · " + (e.engine === "openai" ? "OpenAI" : "本地") + "）") + mdToHtml(e.md);
+    el("aiHistory").hidden = true; el("aiHistBtn").classList.remove("active");
   }
 
   // Settings modal
@@ -1358,10 +1401,21 @@
   el("aiBtn").addEventListener("click", openAi);
   el("aiClose").addEventListener("click", function () { hideOverlay("aiOverlay"); });
   el("aiTabs").addEventListener("click", function (e) {
+    if (e.target.id === "aiHistBtn" || e.target.closest("#aiHistBtn")) { toggleAiHistory(); return; }
     if (!e.target.classList.contains("ai-tab")) return;
-    aiRange = e.target.dataset.range; updateAiTabs(); generateAi();
+    aiRange = e.target.dataset.range; updateAiTabs();
+    el("aiHistory").hidden = true; el("aiHistBtn").classList.remove("active");
+    showAi(false);
   });
-  el("aiRegen").addEventListener("click", generateAi);
+  el("aiHistory").addEventListener("click", function (e) {
+    if (e.target.id === "aiHistClear") {
+      if (confirm("清空所有历史总结？")) { state.summaries = []; save(); renderAiHistory(); }
+      return;
+    }
+    var item = e.target.closest(".ai-hist-item");
+    if (item) viewAiHistory(item.dataset.id);
+  });
+  el("aiRegen").addEventListener("click", function () { showAi(true); });
   el("aiCopy").addEventListener("click", function () {
     if (!aiCurrentMd) return;
     if (navigator.clipboard) navigator.clipboard.writeText(aiCurrentMd).then(function () { toast("已复制到剪贴板"); }, function () { toast("复制失败"); });
