@@ -56,7 +56,7 @@
       projects: [],
       abilities: DEFAULT_ABILITIES.map(function (a) { return Object.assign({}, a); }),
       xpLog: [],
-      settings: { theme: "system", lastView: "board", ai: { engine: "local", apiKey: "", model: "gpt-4o" } },
+      settings: { theme: "system", lastView: "board", ai: { engine: "local", apiKey: "", baseUrl: "", model: "gpt-4o" } },
     };
   }
   function loadState() {
@@ -83,7 +83,7 @@
       : DEFAULT_ABILITIES.map(function (a) { return Object.assign({}, a); });
     d.xpLog = Array.isArray(s.xpLog) ? s.xpLog : [];
     d.settings = Object.assign(d.settings, s.settings || {});
-    d.settings.ai = Object.assign({ engine: "local", apiKey: "", model: "gpt-4o" }, (s.settings && s.settings.ai) || {});
+    d.settings.ai = Object.assign({ engine: "local", apiKey: "", baseUrl: "", model: "gpt-4o" }, (s.settings && s.settings.ai) || {});
     // migrate legacy Claude config → OpenAI
     if (d.settings.ai.engine === "claude") d.settings.ai.engine = "openai";
     if (/^claude/.test(d.settings.ai.model || "")) d.settings.ai.model = "gpt-4o";
@@ -1137,7 +1137,10 @@
   function getOpenAI() {
     return loadOpenAISDK().then(function (mod) {
       var OpenAI = mod.default || mod.OpenAI;
-      return new OpenAI({ apiKey: state.settings.ai.apiKey, dangerouslyAllowBrowser: true });
+      var cfg = { apiKey: state.settings.ai.apiKey, dangerouslyAllowBrowser: true };
+      var base = (state.settings.ai.baseUrl || "").trim();
+      if (base) cfg.baseURL = base.replace(/\/+$/, ""); // any OpenAI-compatible endpoint
+      return new OpenAI(cfg);
     });
   }
   function callOpenAI(messages, opts) {
@@ -1260,6 +1263,7 @@
     tmpEngine = state.settings.ai.engine;
     el("setKey").value = state.settings.ai.apiKey || "";
     el("setKey").type = "password"; el("setKeyToggle").textContent = "显示";
+    el("setBaseUrl").value = state.settings.ai.baseUrl || "";
     el("setModel").value = state.settings.ai.model || "gpt-4o";
     updateEngineSeg();
     showOverlay("settingsOverlay");
@@ -1271,6 +1275,7 @@
   function saveSettings() {
     state.settings.ai.engine = tmpEngine;
     state.settings.ai.apiKey = el("setKey").value.trim();
+    state.settings.ai.baseUrl = el("setBaseUrl").value.trim().replace(/\/+$/, "");
     state.settings.ai.model = el("setModel").value.trim() || "gpt-4o";
     if (tmpEngine === "openai" && !state.settings.ai.apiKey) { toast("已切换到 OpenAI，但未填写 API Key，将暂用本地引擎"); }
     save(); updateAiEngineLabel();
