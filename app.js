@@ -646,6 +646,22 @@
     done.forEach(function (t) { if (t.xpApplied && t.xp) Object.keys(t.xp.gains).forEach(function (id) { ab[id] = (ab[id] || 0) + t.xp.gains[id]; }); });
     return { total: ts.length, doneCount: done.length, open: open.length, overdue: overdue, nextDue: nextDue, pct: ts.length ? Math.round(done.length / ts.length * 100) : 0, abilities: ab, tasks: ts };
   }
+  // Map a project to a "process" status badge in the neurohtop monitor.
+  function neuroStatus(p, s) {
+    if (p.status === "done") return { label: "DONE", color: "#34d399" };
+    if (p.status === "paused") return { label: "SUSPENDED", color: "#f87171" };
+    if (s.total === 0) return { label: "IDLE", color: "#64748b" };
+    if (s.overdue > 0) return { label: "OVERLOAD", color: "#fbbf24" };
+    return { label: "RUNNING", color: "#4ade80" };
+  }
+  function neuroRow(pid, num, nameHtml, pct, color, label) {
+    return '<div class="np-row" data-pid="' + pid + '">' +
+      '<span class="np-pid">' + num + '</span>' +
+      '<span class="np-name">' + nameHtml + '</span>' +
+      '<span class="np-bar"><i style="width:' + pct + '%"></i></span>' +
+      '<span class="np-stat" style="color:' + color + '"><b>' + pct + '%</b> ' + label + '</span>' +
+      '</div>';
+  }
   function renderProjects(root) {
     var sorted = state.projects.slice().sort(function (a, b) {
       var r = PROJECT_STATUS[a.status].rank - PROJECT_STATUS[b.status].rank;
@@ -654,38 +670,53 @@
       if (ad !== bd) return ad < bd ? -1 : 1;
       return a.createdAt - b.createdAt;
     });
-    var html = '<div class="proj-grid">';
-    sorted.forEach(function (p) { html += projectCardHtml(p); });
-    // 未分类 pseudo-card
+    var rows = "", doneTotal = 0, overdueTotal = 0, minCreated = Infinity;
+    sorted.forEach(function (p, i) {
+      var s = projectStats(p.id);
+      doneTotal += s.doneCount; overdueTotal += s.overdue;
+      if (p.createdAt) minCreated = Math.min(minCreated, p.createdAt);
+      var st = neuroStatus(p, s);
+      var msTotal = p.milestones.length;
+      var msDone = p.milestones.filter(function (m) { return m.done; }).length;
+      var msTag = msTotal ? ' <span class="np-ms">▸' + msDone + '/' + msTotal + '</span>' : '';
+      rows += neuroRow(p.id, ("00" + (i + 1)).slice(-3), esc(p.name) + msTag, s.pct, st.color, st.label);
+    });
+    // 未分类任务 → a background/system process row
     var unfiled = projectStats(null);
     if (unfiled.total) {
-      html += '<div class="proj-card" data-pid="__none"><div class="proj-card-head"><span class="pdot" style="background:var(--muted)"></span>' +
-        '<span class="pname">未分类任务</span><span class="pcount">' + unfiled.total + " 项</span></div>" +
-        '<div class="pbar"><i style="width:' + unfiled.pct + '%;background:var(--muted)"></i></div>' +
-        '<div class="pmeta">完成 ' + unfiled.doneCount + "/" + unfiled.total + " · 点击查看</div></div>";
+      doneTotal += unfiled.doneCount; overdueTotal += unfiled.overdue;
+      var ust = unfiled.overdue > 0
+        ? { label: "OVERLOAD", color: "#fbbf24" }
+        : { label: "BACKGROUND", color: "#64748b" };
+      rows += neuroRow("__none", "sys", '<span class="np-sys">未分类任务</span>', unfiled.pct, ust.color, ust.label);
     }
-    html += '<button class="proj-card proj-add-card" data-pid="__new">＋ 新建长期项目</button>';
-    html += "</div>";
-    root.innerHTML = html;
-  }
-  function projectCardHtml(p) {
-    var s = projectStats(p.id);
-    var st = PROJECT_STATUS[p.status];
-    var dueOver = p.due && p.due < todayStr() && p.status !== "done";
-    var msDone = p.milestones.filter(function (m) { return m.done; }).length;
-    return '<div class="proj-card' + (p.status === "done" ? " is-done" : "") + '" data-pid="' + p.id + '" style="--pc:' + esc(p.color) + '">' +
-      '<div class="proj-card-head"><span class="pdot" style="background:' + esc(p.color) + '"></span>' +
-        '<span class="pname">' + esc(p.name) + '</span>' +
-        '<span class="pstatus" style="color:' + st.color + ';border-color:' + st.color + '">' + st.name + "</span></div>" +
-      (p.goal ? '<div class="pgoal">' + esc(p.goal) + "</div>" : "") +
-      '<div class="pbar"><i style="width:' + s.pct + "%;background:" + esc(p.color) + '"></i></div>' +
-      '<div class="pmeta"><span>进度 ' + s.doneCount + "/" + s.total + "（" + s.pct + "%）</span>" +
-        (p.milestones.length ? '<span>🚩 里程碑 ' + msDone + "/" + p.milestones.length + "</span>" : "") + "</div>" +
-      '<div class="pmeta2">' +
-        (p.due ? '<span class="' + (dueOver ? "pdue-over" : "") + '">📅 ' + p.due + (dueOver ? " 逾期" : "") + "</span>" : '<span class="muted2">无截止日</span>') +
-        (s.overdue ? '<span class="pdue-over">⚠️ ' + s.overdue + " 项逾期</span>" : "") +
-      "</div>" +
-      "</div>";
+    rows += '<div class="np-row np-add" data-pid="__new"><span>＋ spawn_process&nbsp;&nbsp;—&nbsp;&nbsp;新建长期项目</span></div>';
+
+    var year = minCreated === Infinity ? new Date().getFullYear() : new Date(minCreated).getFullYear();
+    var procN = state.projects.length + (unfiled.total ? 1 : 0);
+    var openAll = state.tasks.filter(function (t) { return t.status !== "done"; }).length;
+    var statusMsg;
+    if (!procN) statusMsg = "spawn your first long-term process …";
+    else if (overdueTotal > 0) statusMsg = "rerouting cycles to " + overdueTotal + " overdue task(s) …";
+    else if (state.tasks.length && openAll === 0) statusMsg = "all processes nominal — ship it 🚀";
+    else statusMsg = "building things that actually ship";
+
+    root.innerHTML =
+      '<div class="neuro">' +
+        '<div class="neuro-title">🧠 大脑进程监视器</div>' +
+        '<div class="neuro-term">' +
+          '<div class="neuro-bar"><span class="neuro-dot r"></span><span class="neuro-dot y"></span><span class="neuro-dot g"></span>' +
+            '<span class="neuro-bar-title">neurohtop — brain process monitor</span><span class="neuro-spacer"></span></div>' +
+          '<div class="neuro-body">' +
+            '<div class="np-row np-head"><span>PID</span><span>PROCESS</span><span>CPU</span><span>STATUS</span></div>' +
+            rows +
+            '<div class="np-foot">' +
+              '<div>load average: done <span class="np-up">↑' + doneTotal + '</span>&nbsp;&nbsp;overdue <span class="np-dn">↓' + overdueTotal + '</span>&nbsp;&nbsp;processes = ' + procN + '&nbsp;&nbsp;uptime = since ' + year + '</div>' +
+              '<div class="np-cmd">$ status: ' + statusMsg + '<span class="np-cursor"></span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
   }
   el("viewRoot").addEventListener("click", function (e) {
     var pcard = e.target.closest("[data-pid]");
